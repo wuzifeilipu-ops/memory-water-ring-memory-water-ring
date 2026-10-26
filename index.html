@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>回忆星环 · 横屏沉浸版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #1b254f, #4b3d8f, #c44569, #f67280);
+    background-size: 400% 400%;
+    animation: bgShift 24s ease infinite;
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.6s ease;
+  }
+
+  @keyframes bgShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  #bg {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    z-index: 0;
+    touch-action: none;
+  }
+
+  .stage {
+    position: fixed; inset: 0;
+    z-index: 1;
+    perspective: 1400px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .space {
+    position: relative;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .card {
+    position: absolute;
+    left: 0; top: 0;
+    width: 220px; height: 310px;
+    margin-left: -110px;
+    margin-top: -155px;
+    transform-style: preserve-3d;
+    pointer-events: auto;
+    border-radius: 18px;
+    opacity: 0;
+    transition: transform 1.2s cubic-bezier(.2,.8,.2,1), opacity .9s ease;
+    will-change: transform;
+    cursor: pointer;
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%; height: 100%;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid rgba(255,255,255,.7);
+    box-shadow:
+      0 20px 45px rgba(0, 0, 0, .25),
+      0 8px 18px rgba(0, 0, 0, .15),
+      inset 0 0 0 1px rgba(255,255,255,.9);
+    transition: transform .45s cubic-bezier(.2,.8,.3,1), box-shadow .45s;
+  }
+
+  .card:hover .card-inner {
+    transform: translateY(-8px);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,1),
+      0 25px 55px rgba(0, 0, 0, .3),
+      0 0 40px rgba(255, 255, 255, .5);
+  }
+
+  .card.active .card-inner {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 60px rgba(255, 255, 255, .9),
+      0 30px 60px rgba(0, 0, 0, .4);
+  }
+
+  .card-inner img,
+  .card-inner video {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: 2;
+    -webkit-user-drag: none;
+  }
+
+  .ph {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(140deg,
+      hsl(calc(260 + var(--i) * 22), 70%, 65%),
+      hsl(calc(320 + var(--i) * 18), 80%, 75%));
+    color: rgba(255, 255, 255, .85);
+    font-size: 40px;
+    font-weight: 300;
+    letter-spacing: .06em;
+  }
+  .ph::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.55), transparent 55%);
+  }
+  .ph span { position: relative; }
+
+  .card-inner::after {
+    content: '';
+    position: absolute; inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,.18) 0%, transparent 28%, rgba(0,0,0,.18) 100%);
+  }
+
+  .card-inner::before {
+    content: attr(data-num);
+    position: absolute;
+    left: 14px; bottom: 12px;
+    z-index: 4;
+    font-size: 11px;
+    letter-spacing: .22em;
+    color: rgba(255, 255, 255, .8);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+    pointer-events: none;
+  }
+
+  .play-badge {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 56px; height: 56px;
+    margin: -28px 0 0 -28px;
+    z-index: 5;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .35);
+    border: 1px solid rgba(255,255,255,.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    transition: opacity .35s, transform .35s;
+    pointer-events: none;
+  }
+  .play-badge::before {
+    content: '';
+    border-left: 15px solid #fff;
+    border-top: 9px solid transparent;
+    border-bottom: 9px solid transparent;
+    margin-left: 5px;
+  }
+  .card:hover .play-badge { opacity: 0; transform: scale(.75); }
+
+  .hint {
+    position: fixed;
+    left: 50%; bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 2;
+    color: rgba(255,255,255,.85);
+    font-size: 13px;
+    letter-spacing: .16em;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 2px 12px rgba(0,0,0,.45);
+  }
+
+  .vignette {
+    position: fixed; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, .35) 100%);
+  }
+
+  .music-btn {
+    position: fixed;
+    right: 18px;
+    bottom: 20px;
+    z-index: 10;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .35);
+    border: 1px solid rgba(255,255,255,.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #fff;
+    font-size: 20px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  }
+
+  @media (max-width: 900px) {
+    .hint { font-size: 11px; letter-spacing: .1em; }
+    .card { width: 180px; height: 260px; margin-left: -90px; margin-top: -130px; }
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="bg"></canvas>
+  <div class="vignette"></div>
+
+  <div class="stage">
+    <div class="space" id="space"></div>
+  </div>
+
+  <div class="hint">点击空白切换彩色背景　·　点击照片视频带动星环旋转</div>
+  <div class="music-btn" id="musicBtn">♫</div>
+
+  <audio id="bgMusic" loop preload="metadata">
+    <source src="duoyuan.mp3" type="audio/mpeg">
+  </audio>
+
+<script>
+/* ========== 照片视频列表 ========== */
+const MEDIA = [
+  { type: 'image', src: 'photos/01.jpg' },
+  { type: 'image', src: 'photos/02.jpg' },
+  { type: 'video', src: 'videos/01.mp4' },
+  { type: 'image', src: 'photos/03.jpg' },
+  { type: 'image', src: 'photos/04.jpg' },
+  { type: 'video', src: 'videos/02.mp4' },
+  { type: 'image', src: 'photos/05.jpg' },
+  { type: 'image', src: 'photos/06.jpg' },
+  { type: 'image', src: 'photos/07.jpg' }
+];
+
+/* ========== 横屏比例：iPhone 16 Pro 近似横版 2.16:1 ========== */
+function applyPhoneLandscapeFrame() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const targetRatio = 19.5 / 9; // iPhone 16 Pro 物理比例
+  const currentRatio = vw / vh;
+
+  if (currentRatio < targetRatio) {
+    const newH = vw / targetRatio;
+    const marginTop = (vh - newH) / 2;
+    document.body.style.marginTop = marginTop + 'px';
+    document.body.style.height = newH + 'px';
+  } else {
+    document.body.style.marginTop = '0px';
+    document.body.style.height = '100%';
+  }
+}
+
+/* ========== 明亮多色背景配置 ========== */
+const PALETTES = [
+  'radial-gradient(circle at 50% 50%, #1b254f, #4b3d8f, #c44569, #f67280)',
+  'radial-gradient(circle at 50% 50%, #2d1b69, #6f1ab6, #f093fb, #f5576c)',
+  'radial-gradient(circle at 50% 50%, #13547a, #80d0c7, #f6d365, #fda085)',
+  'radial-gradient(circle at 50% 50%, #0f2027, #203a43, #2c5364, #ff6a88)',
+  'radial-gradient(circle at 50% 50%, #3a1c71, #d76d77, #ffaf7b, #f6d365)',
+  'radial-gradient(circle at 50% 50%, #00c6ff, #0072ff, #a18cd1, #fbc2eb)'
+];
+let paletteIndex = 0;
+
+function applyPalette(index) {
+  document.body.style.background = PALETTES[index];
+  document.body.style.backgroundSize = '400% 400%';
+}
+
+/* ========== 音乐控制 ========== */
+const bgMusic = document.getElementById('bgMusic');
+const musicBtn = document.getElementById('musicBtn');
+let musicPlaying = false;
+
+musicBtn.onclick = (e) => {
+  e.stopPropagation();
+  if (musicPlaying) {
+    bgMusic.pause();
+    musicBtn.textContent = '♫';
+    musicPlaying = false;
+  } else {
+    bgMusic.play().catch(err => console.log('需要用户交互后播放音乐', err));
+    musicBtn.textContent = '⏸';
+    musicPlaying = true;
+  }
+};
+
+/* ========== 水面背景画布 ========== */
+const cvs = document.getElementById('bg');
+const ctx = cvs.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resizeCanvas() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cvs.width = Math.floor(W * DPR);
+  cvs.height = Math.floor(H * DPR);
+  cvs.style.width = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+const ripples = [];
+
+function spawnRipple(x, y) {
+  ripples.push({
+    x, y,
+    r: 6,
+    maxR: Math.max(220, Math.min(W, H) * 0.55),
+    life: 1
+  });
+  if (ripples.length > 26) ripples.shift();
+}
+
+function drawBackground(t) {
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const rows = 14;
+  for (let i = 0; i < rows; i++) {
+    const p = i / (rows - 1);
+    const yBase = H * 0.08 + p * H * 1.08;
+    const amp = 14 + p * 38;
+    const alpha = 0.04 + 0.08 * Math.sin(p * Math.PI);
+
+    ctx.beginPath();
+    for (let x = -30; x <= W + 30; x += 14) {
+      const y = yBase
+        + Math.sin(x * 0.0045 + t * 0.0012 + i * 0.7) * amp
+        + Math.sin(x * 0.01 - t * 0.0009 + i * 1.4) * amp * 0.3;
+      if (x === -30) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRipples() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i];
+
+    rp.r += (rp.maxR - rp.r) * 0.045 + 0.4;
+    rp.life -= 0.010;
+
+    if (rp.life <= 0) { ripples.splice(i, 1); continue; }
+
+    const a = rp.life * rp.life;
+
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${a * 0.55})`;
+    ctx.lineWidth = 1 + rp.life * 4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, rp.r * 0.6, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${a * 0.3})`;
+    ctx.lineWidth = 1 + rp.life * 2;
+    ctx.stroke();
+
+    if (rp.life > 0.75) {
+      const k = (rp.life - 0.75) / 0.25;
+      const cg = ctx.createRadialGradient(rp.x, rp.y, 0, rp.x, rp.y, 60);
+      cg.addColorStop(0, `rgba(255, 255, 255, ${k * 0.32})`);
+      cg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = cg;
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, 60, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/* ========== 半环星环：围绕立体中心点不规则散布 ========== */
+const space = document.getElementById('space');
+let spaceScale = 1;
+
+function computeScale() {
+  const w = window.innerWidth;
+  if (w < 800)       spaceScale = 0.42;
+  else if (w < 1200) spaceScale = 0.56;
+  else if (w < 1600) spaceScale = 0.72;
+  else               spaceScale = 0.88;
+}
+
+function stableRandom(seed) {
+  const x = Math.sin(seed * 9301 + 49297) * 233280;
+  return x - Math.floor(x);
+}
+
+function buildCards() {
+  space.innerHTML = '';
+
+  MEDIA.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.setProperty('--i', i);
+
+    // 半环星环绕立体中心点分布
+    const total = MEDIA.length;
+    const spreadAngle = 150; // 半环张开角度
+    const step = spreadAngle / (total - 1 || 1);
+    const baseAngleY = -spreadAngle / 2 + i * step;
+
+    const radius = 520 + stableRandom(i + 3) * 160;
+    const angleY = baseAngleY + (stableRandom(i + 11) - 0.5) * 18;
+    const angleX = (stableRandom(i + 17) - 0.5) * 35;
+    const angleZ = (stableRandom(i + 23) - 0.5) * 10;
+
+    const radY = angleY * Math.PI / 180;
+    const radX = angleX * Math.PI / 180;
+
+    const x = Math.sin(radY) * radius;
+    const y = Math.sin(radX) * 180 + (stableRandom(i + 31) - 0.5) * 140;
+    const z = -Math.cos(radY) * radius - 180 - stableRandom(i + 37) * 120;
+
+    const rotateY = angleY + (stableRandom(i + 41) - 0.5) * 20;
+    const rotateX = angleX * 0.4 + (stableRandom(i + 43) - 0.5) * 12;
+    const rotateZ = angleZ;
+
+    card.dataset.origAngleY = angleY;
+    card.dataset.origAngleX = angleX;
+    card.dataset.origRadius = radius;
+
+    card.dataset.initialX = x;
+    card.dataset.initialY = y;
+    card.dataset.initialZ = z;
+    card.dataset.initialRotateY = rotateY;
+    card.dataset.initialRotateX = rotateX;
+    card.dataset.initialRotateZ = rotateZ;
+
+    card.style.transform = `
+      translateX(${x}px)
+      translateY(${y}px)
+      translateZ(${z}px)
+      rotateY(${rotateY}deg)
+      rotateX(${rotateX}deg)
+      rotateZ(${rotateZ}deg)
+    `;
+
+    setTimeout(() => {
+      card.style.opacity = '1';
+    }, 100 + i * 90);
+
+    const inner = document.createElement('div');
+    inner.className = 'card-inner';
+    inner.style.setProperty('--i', i);
+    inner.dataset.num = String(i + 1).padStart(2, '0');
+
+    const ph = document.createElement('div');
+    ph.className = 'ph';
+    ph.innerHTML = `<span>${String(i + 1).padStart(2, '0')}</span>`;
+    inner.appendChild(ph);
+
+    const hasSrc = item && item.src;
+    const isVideo = item && item.type === 'video';
+
+    if (hasSrc && isVideo) {
+      const v = document.createElement('video');
+      v.src = item.src;
+      v.muted = true;
+      v.loop = true;
+      v.playsInline = true;
+      v.setAttribute('playsinline', '');
+      v.preload = 'metadata';
+      v.addEventListener('error', () => v.remove());
+      inner.appendChild(v);
+
+      const badge = document.createElement('div');
+      badge.className = 'play-badge';
+      inner.appendChild(badge);
+
+      card.addEventListener('mouseenter', () => v.play().catch(() => {}));
+      card.addEventListener('mouseleave', () => v.pause());
+    } else if (hasSrc) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.decoding = 'async';
+      img.loading = 'lazy';
+      img.addEventListener('error', () => img.remove());
+      img.src = item.src;
+      inner.appendChild(img);
+    }
+
+    card.appendChild(inner);
+    space.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bringCardToCenter(card, i);
+    });
+  });
+}
+
+/* ========== 点击后整体旋转，带动照片视频来到中央并放大播放 ========== */
+let activeCard = null;
+
+function bringCardToCenter(card, index) {
+  const targetAngleY = -parseFloat(card.dataset.origAngleY);
+  const targetAngleX = -parseFloat(card.dataset.origAngleX) * 0.35;
+
+  targetSpaceRotateY += targetSpaceRotateY + targetAngleY - spaceRotateY;
+  targetSpaceRotateX += targetSpaceRotateX + targetAngleX - spaceRotateX;
+
+  document.querySelectorAll('.card').forEach((c, i) => {
+    if (c === card) return;
+    c.classList.remove('active');
+    const video = c.querySelector('video');
+    if (video) video.pause();
+    c.style.transform = `
+      translateX(${c.dataset.initialX}px)
+      translateY(${c.dataset.initialY}px)
+      translateZ(${c.dataset.initialZ}px)
+      rotateY(${c.dataset.initialRotateY}deg)
+      rotateX(${c.dataset.initialRotateX}deg)
+      rotateZ(${c.dataset.initialRotateZ}deg)
+    `;
+  });
+
+  card.classList.add('active');
+  card.style.transform = `
+    translateX(0px)
+    translateY(0px)
+    translateZ(220px)
+    rotateY(0deg)
+    rotateX(0deg)
+    rotateZ(0deg)
+    scale(1.15)
+  `;
+
+  const video = card.querySelector('video');
+  if (video) {
+    video.currentTime = 0;
+    video.play().catch(() => {});
+  }
+
+  activeCard = card;
+}
+
+/* ========== 点击空白切换背景色 + 涟漪 ========== */
+function onPointerDown(e) {
+  if (e.target.closest('.music-btn') || e.target.closest('.card')) return;
+
+  paletteIndex = (paletteIndex + 1) % PALETTES.length;
+  applyPalette(paletteIndex);
+  spawnRipple(e.clientX, e.clientY);
+}
+
+window.addEventListener('pointerdown', onPointerDown);
+
+/* ========== 主循环：半环星环空间持续转动 ========== */
+let spaceRotateY = 0;
+let spaceRotateX = 0;
+let targetSpaceRotateY = 0;
+let targetSpaceRotateX = 0;
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+
+function loop(now) {
+  drawBackground(now);
+  drawRipples();
+
+  // 持续自转
+  targetSpaceRotateY += 0.02;
+
+  // 轻微俯仰，增强 3D 半环感
+  targetSpaceRotateX = Math.sin(now * 0.00012) * 5;
+
+  // 平滑插值
+  spaceRotateY += (targetSpaceRotateY - spaceRotateY) * 0.045;
+  spaceRotateX += (targetSpaceRotateX - spaceRotateX) * 0.045;
+
+  space.style.transform = `
+    scale(${spaceScale})
+    rotateY(${spaceRotateY}deg)
+    rotateX(${spaceRotateX}deg)
+  `;
+
+  requestAnimationFrame(loop);
+}
+
+/* ========== 拖动控制 ========== */
+function onDragStart(e) {
+  if (e.target.closest('.music-btn') || e.target.closest('.card')) return;
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+
+function onDragMove(e) {
+  if (!dragging) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  targetSpaceRotateY += dx * 0.04;
+  targetSpaceRotateX += dy * 0.02;
+  targetSpaceRotateX = Math.max(-14, Math.min(14, targetSpaceRotateX));
+}
+
+function onDragEnd() {
+  dragging = false;
+}
+
+window.addEventListener('pointerdown', onDragStart);
+window.addEventListener('pointermove', onDragMove);
+window.addEventListener('pointerup', onDragEnd);
+window.addEventListener('pointercancel', onDragEnd);
+
+/* ========== 初始化 ========== */
+function init() {
+  resizeCanvas();
+  computeScale();
+  applyPhoneLandscapeFrame();
+  buildCards();
+  applyPalette(0);
+  requestAnimationFrame(loop);
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  computeScale();
+  applyPhoneLandscapeFrame();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    resizeCanvas();
+    computeScale();
+    applyPhoneLandscapeFrame();
+  }, 120);
+});
+
+init();
+</script>
+</body>
+</html>
